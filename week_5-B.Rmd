@@ -117,11 +117,36 @@ Finally, use `geom_density` to plot the distributions of two states of your choi
 
 **You should do this in steps. First, create the `draws` object. Second, try to successfully change the format of the dataset. Don't do everything all at once in one long section with many pipes!!**
 
+```{r}
+draws <- simulate_election(100) %>%
+  pivot_longer(cols = everything(), names_to = "state", values_to = "trump_share") %>%
+  filter(state %in% c("Florida", "Michigan")) %>%
+  
+  ggplot(aes(x = trump_share, color = state)) +
+  geom_density() +
+  facet_wrap(~ state) +
+  labs(title = "Trump Results in FL and MI Simulation",
+       x = "Modeled Trump Share",
+       y = "Probability of Receving Vote Share ")+
+  theme_bw()
+
+draws
+```
+
+
 
   
 ## Scene 2: Estimating Results from a Single State
 
 In Scene 1, we called this election simulation function a single time. Now, create a new `tibble` called `elections` with one column, `simulations`, that simulates one election in each of 1000 rows. Finally, use this `elections` object to create a column called `pa_win` that uses a `map` function to figure out whether Trump wins Pennsylvania in each of these simulated elections. Once you've verified that works, take the average of the `pa_win` column to see how likely Trump is to win Pennsylvania across all of these simulations.
+
+```{r}
+elections <- tibble(simulations = map(rep(1,1000), simulate_election)) %>%
+  mutate(pa_win = map_lgl(simulations, ~.$Pennsylvania > 50)) %>%
+  summarize(avg = mean(pa_win))
+elections
+```
+
 
 
 
@@ -131,6 +156,16 @@ First, repeat Scene 2 to make a column called `oh_win` that uses a `map` functio
 
 Once that is all done, summarise your dataset to estimate the probabilities of (1) winning PA, (2) winning OH, and (3) winning both.
 
+```{r}
+elections <- tibble(simulations = map(rep(1,1000), simulate_election)) %>%
+  mutate(pa_win = map_lgl(simulations, ~.$Pennsylvania > 50)) %>%
+  mutate(oh_win = map_lgl(simulations, ~.$Ohio > 50)) %>%
+  mutate(called = if_else(condition = pa_win == "TRUE" & oh_win == "TRUE", TRUE, FALSE)) %>%
+  summarize(pa_average = mean(pa_win), oh_average = mean(oh_win), called_avg = mean(called))
+elections
+```
+
+
 
 
 ## Scene 4
@@ -138,6 +173,17 @@ Once that is all done, summarise your dataset to estimate the probabilities of (
 In Scene 4, we estimated the probabilities of winning two states. However, notice we treated these as two entirely separate events. That is, our analyses assumed that Trump winning PA had nothing to do with him winning OH and treated the two events as statistically **independent**. Recall the discussion in Chapter 5 about independence. Two events are independent if the realization of one event does not effect the realization of another. For example, two fair coin flips in a row are independent - the second coin flip couldn't care any less if the first was heads or tails. However, we probably don't think that state election results are independent. If a candidate does well in one coastal, liberal state, they will probably do well in another. Independent events have a statistical correlation of 0.
 
 The Economist says that results in PA and OH are likely to be highly correlated - around 0.7. Let's investigate this using conditional probabilities. Using your elections object from Scene 2, again create two columns called `oh_win` and `pa_win` that map to TRUE and FALSE if Trump wins each state. Then, calculate the probability of winning PA in two scenarios - when Trump wins OH, and when he doesn't. That is, (1) what percentage of the time does Trump win PA if he loses OH, and (2) what percentage of the time does Trump win PA if he wins OH?
+
+```{r}
+elections <- tibble(simulations = map(rep(1,1000), simulate_election)) %>%
+  mutate(pa_win = map_lgl(simulations, ~.$Pennsylvania > 50)) %>%
+  mutate(oh_win = map_lgl(simulations, ~.$Ohio > 50)) %>%
+  group_by(oh_win) %>%
+  summarize(mean(pa_win)) 
+elections
+  
+```
+
 
 
 
